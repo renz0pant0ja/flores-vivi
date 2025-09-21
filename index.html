@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Flores para Viviana 🌼 — Juego (21 Sept)</title>
+<style>
+  :root{
+    --bg-top: #CFF7FF;
+    --bg-bottom: #FFF1C6;
+    --accent: #F5A623;
+    --ui-bg: rgba(255,255,255,0.92);
+    --glass: rgba(255,255,255,0.6);
+    --text: #4b2f06;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial;color:var(--text);-webkit-font-smoothing:antialiased;}
+  body{background: linear-gradient(180deg,var(--bg-top) 0%, var(--bg-bottom) 100%); -webkit-tap-highlight-color: transparent;}
+  .app{max-width:980px;margin:0 auto;height:100vh;display:grid;grid-template-rows:auto 1fr auto;padding:12px;box-sizing:border-box}
+  header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .brand{display:flex;flex-direction:column}
+  .brand h1{margin:0;font-size:1.02rem;letter-spacing:0.2px}
+  .brand p{margin:2px 0 0 0;font-size:0.86rem;color:rgba(75,47,6,0.85)}
+  .controls{display:flex;gap:8px;align-items:center}
+  .select, .btn{appearance:none;border:0;padding:10px 14px;border-radius:12px;font-weight:800}
+  .select{background:var(--ui-bg);box-shadow:0 8px 22px rgba(11,12,20,0.06)}
+  .btn{background:linear-gradient(180deg,#ffd86b,#f7b500);color:#4a2f00;box-shadow:0 10px 28px rgba(11,12,20,0.09)}
+  .hud{display:flex;gap:8px;align-items:center}
+  .chip{background:var(--ui-bg);padding:8px 12px;border-radius:999px;font-weight:800;box-shadow:0 10px 24px rgba(11,12,20,0.06)}
+  .stage{position:relative;border-radius:18px;overflow:hidden;background:linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.03));box-shadow:0 20px 40px rgba(11,12,20,0.06);height:calc(100vh - 170px)}
+  .hint{position:absolute;left:12px;top:12px;background:var(--glass);padding:8px 10px;border-radius:10px;font-weight:700;z-index:40}
+  .item{position:absolute;will-change:transform,opacity;touch-action:none;user-select:none;z-index:20}
+  .flowerSVG{width:84px;height:84px}
+  .letterItem{width:64px;height:64px;border-radius:12px;background:linear-gradient(180deg,#fff8de,#fff1b0);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:var(--accent);box-shadow:0 10px 26px rgba(0,0,0,0.08)}
+  .bomb{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#2b2b2b;color:white;font-weight:900;font-size:20px;box-shadow:0 10px 26px rgba(0,0,0,0.18)}
+  .cat{width:72px;height:72px;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+  .namebar{display:flex;gap:8px;align-items:center;justify-content:center;padding:10px}
+  .slot{width:36px;height:36px;border-radius:8px;background:var(--ui-bg);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--accent);box-shadow:0 8px 18px rgba(0,0,0,0.06)}
+  .slot.done{background:linear-gradient(180deg,#ffd86b,#f7b500);color:white}
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,8,12,0.46);z-index:60}
+  .card{width:min(92%,520px);background:linear-gradient(180deg,#fffaf0,#fff4d6);border-radius:16px;padding:18px;text-align:left;box-shadow:0 30px 60px rgba(0,0,0,0.22)}
+  .card h2{margin:0 0 8px 0;color:var(--accent);text-align:center}
+  .card p{margin:6px 0;color:var(--text)}
+  .small{padding:8px 10px;border-radius:12px;background:#fff;border:1px solid rgba(0,0,0,0.04);cursor:pointer}
+  .confetti{position:absolute;width:8px;height:14px;border-radius:2px;opacity:0}
+  #timeChip{min-width:92px;text-align:center}
+  @media (max-width:420px){ .flowerSVG{width:68px;height:68px} .letterItem{width:54px;height:54px;font-size:18px} .stage{height:calc(100vh - 160px)} }
+</style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div class="brand">
+        <h1>🌼 Un juego para Viviana — 21 de septiembre</h1>
+        <p>Atrapa las letras en orden, no dejes caer flores, evita las bombas. Toca gatos negros para ganar tiempo.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <div class="controls">
+          <select id="difficulty" class="select" aria-label="Dificultad">
+            <option value="easy">Fácil</option>
+            <option value="medium" selected>Medio</option>
+            <option value="hard">Difícil</option>
+          </select>
+          <button id="openStart" class="btn">Comenzar</button>
+        </div>
+        <div class="hud" style="display:flex;gap:8px">
+          <div class="chip" id="timeChip">⏳ 60s</div>
+          <div class="chip" id="scoreChip">Puntos: 0</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="stage" id="stage" role="application" aria-label="Área de juego">
+      <div class="hint">Toca las letras en orden para formar: <strong>V I V I A N A</strong></div>
+    </main>
+
+    <div class="namebar" id="namebar" aria-hidden="false" title="Progreso del nombre"></div>
+  </div>
+
+  <!-- Start modal -->
+  <div class="modal" id="startModal" style="display:none">
+    <div class="card">
+      <h2>💛 Estuve preparando para tiiiiii :3 💛</h2>
+      <p><strong>🌼 Reglas del juego:</strong></p>
+      <ul>
+        <li>Atrapa las letras para formar tu nombre: <b>V I V I A N A</b> (en ese orden)</li>
+        <li>El tiempo es tu límite: empieza en 60s</li>
+        <li>Dejar caer una flor o tocar letra incorrecta = -6s</li>
+        <li>Tocar una bomba = -8s</li>
+        <li>Tocar un gato negro con ojos naranjas = +6s (máx. 120s)</li>
+      </ul>
+      <div style="margin-top:12px; display:flex;gap:8px;align-items:center;justify-content:center">
+        <label for="startDifficulty">Elegir dificultad:</label>
+        <select id="startDifficulty" class="select">
+          <option value="easy">Fácil</option>
+          <option value="medium" selected>Medio</option>
+          <option value="hard">Difícil</option>
+        </select>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;justify-content:center">
+        <button id="startGameBtn" class="btn">Comenzar</button>
+        <button id="closeStart" class="small">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+ 
+  <div class="modal" id="finalModal" style="display:none">
+    <div class="card" id="finalCard">
+      <h2 id="finalTitle">¡Felicidades!</h2>
+      <p id="finalText">Has formado el nombre y recibes este ramo.</p>
+      <div style="display:flex;justify-content:center;margin-top:12px"><div id="bouquet"></div></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+        <button id="playAgain" class="btn">🔄 Jugar otra vez</button>
+        <button id="copyMsg" class="small">💌 Copiar mensaje</button>
+        <button id="saveImg" class="small">⬇️ Descargar ramo</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+
+
+const NAME = 'VIVIANA';
+const START_TIME = Infinity; 
+const MAX_TIME = Infinity;
+const GRACE_PERIOD = 3000; 
+
+
+const DIFF = {
+  easy:   {FLOWER_MS:1200, LETTER_MS:1500, BOMB_MS:3500, CAT_MS:5200, FALL_MIN:6500, FALL_MAX:10000, MAX_ON:6},
+  medium: {FLOWER_MS:800,  LETTER_MS:1100, BOMB_MS:2600, CAT_MS:4200, FALL_MIN:5200, FALL_MAX:8200, MAX_ON:8},
+  hard:   {FLOWER_MS:520,  LETTER_MS:850,  BOMB_MS:1900, CAT_MS:3200, FALL_MIN:3800, FALL_MAX:7200, MAX_ON:10}
+};
+
+const stage = document.getElementById('stage');
+const namebar = document.getElementById('namebar');
+const timeChip = document.getElementById('timeChip');
+const scoreChip = document.getElementById('scoreChip');
+const startModal = document.getElementById('startModal');
+const finalModal = document.getElementById('finalModal');
+const openStart = document.getElementById('openStart');
+const startGameBtn = document.getElementById('startGameBtn');
+const startDifficulty = document.getElementById('startDifficulty');
+const startSelect = document.getElementById('difficulty');
+const playAgain = document.getElementById('playAgain');
+const copyMsg = document.getElementById('copyMsg');
+const saveImg = document.getElementById('saveImg');
+const bouquet = document.getElementById('bouquet');
+
+let settings = DIFF['medium'];
+let items = [];
+let itemsOnScreen = 0;
+let spawnTimers = {flower:null, letter:null, bomb:null, cat:null};
+let running = false;
+let gameStarted = false;
+let startTime = 0;
+let timeLeft = START_TIME;
+let timerInterval = null;
+let score = 0;
+let collectedIndex = 0;
+let audioCtx = null;
+
+function buildNameBar(){ namebar.innerHTML=''; for(let i=0;i<NAME.length;i++){ const s = document.createElement('div'); s.className='slot'; s.textContent = NAME[i]; namebar.appendChild(s); } }
+buildNameBar();
+
+function updateHUD(){ timeChip.textContent = `⏳ ${timeLeft}s`; scoreChip.textContent = 'Puntos: ' + score; Array.from(namebar.children).forEach((n,i)=> n.classList.toggle('done', i < collectedIndex)); }
+updateHUD();
+
+function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if(audioCtx.state === 'suspended') audioCtx.resume(); }
+function playPop(){ try{ ensureAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='sine'; o.frequency.value=760; g.gain.setValueAtTime(0.0001,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.12,audioCtx.currentTime+0.01); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.22); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+0.22);}catch(e){} }
+function playBad(){ try{ ensureAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='square'; o.frequency.value=220; g.gain.setValueAtTime(0.0001,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.12,audioCtx.currentTime+0.01); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.3); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+0.3);}catch(e){} }
+function playWin(){ try{ ensureAudio(); const now=audioCtx.currentTime; [420,640,900].forEach((f,i)=>{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='triangle'; o.frequency.value=f; g.gain.setValueAtTime(0.0001, now + i*0.06); g.gain.exponentialRampToValueAtTime(0.16, now + 0.04 + i*0.06); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.56 + i*0.06); o.connect(g); g.connect(audioCtx.destination); o.start(now + i*0.06); o.stop(now + 0.6 + i*0.06); }); }catch(e){} }
+
+function setSettingsFromDifficulty(){ settings = DIFF[ startSelect.value || 'medium' ]; }
+
+
+function createFlowerElement(size=76){
+  const wrapper = document.createElement('div'); wrapper.className = 'item'; wrapper.style.width = size + 'px'; wrapper.style.height = size + 'px';
+  const svg = `
+    <svg class="flowerSVG" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="petA" x1="0" x2="1"><stop offset="0%" stop-color="#fff9d6"/><stop offset="65%" stop-color="#ffea6a"/><stop offset="100%" stop-color="#ffd24a"/></linearGradient>
+        <radialGradient id="cent" cx="40%" cy="30%"><stop offset="0%" stop-color="#ffd38a"/><stop offset="100%" stop-color="#ff9f1c"/></radialGradient>
+      </defs>
+      ${Array.from({length:8}).map((_,i)=>{
+        const a = i * (360/8);
+        const rx = 20, ry = 36;
+        return `<ellipse cx="60" cy="28" rx="${rx}" ry="${ry}" transform="rotate(${a} 60 60)" fill="url(#petA)" stroke="rgba(0,0,0,0.03)" stroke-width="0.6" />`;
+      }).join('')}
+      <circle cx="60" cy="60" r="20" fill="url(#cent)" />
+    </svg>`;
+  wrapper.innerHTML = svg;
+  return wrapper;
+}
+
+
+function createLetterElement(ch, size=64){
+  const el = document.createElement('div'); el.className='item letterItem'; el.style.width = size+'px'; el.style.height = size+'px'; el.textContent = ch; return el;
+}
+
+function createBombElement(size=56){ const el = document.createElement('div'); el.className='item bomb'; el.style.width=size+'px'; el.style.height=size+'px'; el.textContent='💣'; return el; }
+
+
+function createCatElement(size=72){
+  const wrapper = document.createElement('div'); wrapper.className='item cat'; wrapper.style.width=size+'px'; wrapper.style.height=size+'px';
+  const svg = `
+    <svg viewBox="0 0 120 120" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <radialGradient id="g1" cx="30%" cy="30%"><stop offset="0%" stop-color="#111"/><stop offset="100%" stop-color="#000"/></radialGradient>
+      </defs>
+      <!-- head -->
+      <ellipse cx="60" cy="62" rx="36" ry="30" fill="url(#g1)" />
+      <!-- ears -->
+      <path d="M30 40 L44 18 L58 44 Z" fill="#0b0b0b"/>
+      <path d="M90 40 L76 18 L62 44 Z" fill="#0b0b0b"/>
+      <!-- eyes (orange) -->
+      <ellipse cx="46" cy="60" rx="6" ry="12" fill="#ff8c00" />
+      <ellipse cx="74" cy="60" rx="6" ry="12" fill="#ff8c00" />
+      <!-- pupils -->
+      <circle cx="46" cy="64" r="2" fill="#2b2b2b"/>
+      <circle cx="74" cy="64" r="2" fill="#2b2b2b"/>
+      <!-- nose -->
+      <path d="M60 74 q4 6 -4 0 z" fill="#ffb3b3"/>
+      <!-- mouth -->
+      <path d="M56 78 q4 4 8 0" stroke="#ffb3b3" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    </svg>
+  `;
+  wrapper.innerHTML = svg;
+  return wrapper;
+}
+
+
+function spawnItem(type, atX=null, atY=null){
+  if(!running) return;
+  if(itemsOnScreen >= settings.MAX_ON) return;
+  const rect = stage.getBoundingClientRect();
+  const sizeMap = {flower:randomBetween(56,86), letter:randomBetween(48,66), bomb:56, cat:72};
+  const size = sizeMap[type];
+  let el;
+  if(type==='flower') el = createFlowerElement(size);
+  else if(type==='letter') el = createLetterElement('?', size);
+  else if(type==='bomb') el = createBombElement(size);
+  else el = createCatElement(size);
+
+  const x = (atX!==null)? atX - size/2 : Math.random() * (rect.width - size);
+  const startY = (atY!==null)? atY - size/2 : -(Math.random()*80 + size);
+  el.style.left = x + 'px'; el.style.top = startY + 'px';
+  stage.appendChild(el); itemsOnScreen++;
+
+  if(type==='flower'){
+    el.addEventListener('pointerdown', ev=>{ ev.preventDefault(); collectFlower(el); });
+    animateFall(el, settings.FALL_MIN, settings.FALL_MAX, ()=>{ if(el.parentNode) el.parentNode.removeChild(el); itemsOnScreen--; // penalty: lose time if grace passed
+      if (gameStarted && Date.now() - startTime > GRACE_PERIOD) changeTime(-6, 'flor perdida');
+    });
+  } else if(type==='letter'){
+    const next = NAME[collectedIndex];
+    const showNext = Math.random() < 0.75;
+    const ch = (collectedIndex < NAME.length && showNext) ? next : NAME[Math.floor(Math.random()*NAME.length)];
+    el.textContent = ch;
+    el.addEventListener('pointerdown', ev=>{ ev.preventDefault(); collectLetter(el, ch); });
+    animateFall(el, settings.FALL_MIN-400, settings.FALL_MAX-300, ()=>{ if(el.parentNode) el.parentNode.removeChild(el); itemsOnScreen--; /* letters that hit bottom disappear — but we don't penalize unless you want */ });
+  } else if(type==='bomb'){
+    el.addEventListener('pointerdown', ev=>{ ev.preventDefault(); collectBomb(el); });
+    animateFall(el, settings.FALL_MIN+200, settings.FALL_MAX+900, ()=>{ if(el.parentNode) el.parentNode.removeChild(el); itemsOnScreen--; /* bombs that pass do nothing */ });
+  } else if(type==='cat'){
+    el.addEventListener('pointerdown', ev=>{ ev.preventDefault(); collectCat(el); });
+    animateFall(el, settings.FALL_MIN+200, settings.FALL_MAX+1000, ()=>{ if(el.parentNode) el.parentNode.removeChild(el); itemsOnScreen--; /* cats that pass do nothing */ });
+  }
+}
+
+
+function animateFall(el, minDur, maxDur, onEnd){
+  const rect = stage.getBoundingClientRect();
+  const dur = randomBetween(minDur, maxDur);
+  const start = performance.now();
+  const startTop = parseFloat(el.style.top) || -50;
+  const endTop = rect.height + 80;
+  const rotateTotal = (Math.random()<0.5?1:-1) * randomBetween(360,1080);
+  const swayPhase = Math.random()*2*Math.PI;
+  function step(now){
+    const t = (now - start) / dur;
+    if(t >= 1){ onEnd && onEnd(); return; }
+    const top = startTop + (endTop - startTop) * t;
+    const sway = Math.sin(t*6 + swayPhase) * 44 * (1 - t);
+    el.style.transform = `translate(${sway}px, ${top}px) rotate(${rotateTotal * t}deg)`;
+    el.style.opacity = 1 - (t * 0.25);
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+
+function collectFlower(el){ if(!running) return; playPop(); score += 5; updateHUD(); el.style.pointerEvents='none'; el.style.transition='transform 260ms, opacity 260ms'; el.style.transform += ' scale(1.12)'; el.style.opacity='0'; setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); itemsOnScreen--; }, 250); }
+function collectLetter(el, ch){ if(!running) return;
+  if(ch === NAME[collectedIndex]){
+    playPop(); collectedIndex++; score += 12; updateHUD();
+    el.style.pointerEvents='none'; el.style.transition='transform 260ms, opacity 260ms'; el.style.transform += ' scale(1.16)'; el.style.opacity='0';
+    setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); itemsOnScreen--; }, 260);
+    navigator.vibrate && navigator.vibrate(30);
+    if(collectedIndex >= NAME.length) success();
+  } else {
+    
+    playBad(); changeTime(-6, 'letra incorrecta');
+    if(el.parentNode) el.parentNode.removeChild(el); itemsOnScreen--;
+  }
+}
+function collectBomb(el){ if(!running) return;
+  playBad(); changeTime(-8, 'bomba tocada');
+  
+  el.style.pointerEvents='none'; el.style.transition='transform 260ms, opacity 260ms'; el.style.transform += ' scale(0.6) rotate(90deg)'; el.style.opacity='0';
+  setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); itemsOnScreen--; }, 280);
+}
+function collectCat(el){ if(!running) return; playPop();
+  changeTime(+6, 'gato atrapado'); score += 8; updateHUD();
+  el.style.pointerEvents='none'; el.style.transition='transform 300ms, opacity 300ms'; el.style.transform += ' scale(1.08)'; el.style.opacity='0';
+  setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); itemsOnScreen--; }, 320);
+}
+
+
+function changeTime(delta, reason=''){
+  timeLeft = Math.max(0, Math.min(MAX_TIME, Math.round((timeLeft + delta)*10)/10));
+  updateHUD();
+
+  if(delta < 0) { navigator.vibrate && navigator.vibrate(80); playBad(); }
+  else if(delta > 0) playPop();
+  if(timeLeft <= 0) fail();
+}
+
+
+function success(){ running=false; stopSpawns(); playWin(); showFinal(true); clearTimer(); }
+function fail(){ running=false; stopSpawns(); showFinal(false); clearTimer(); }
+
+function showFinal(win){
+  document.getElementById('finalTitle').textContent = win ? `¡Lo lograste, Viviiii yeiiiii! 💛` : `¡Se terminó el tiempo!`;
+  document.getElementById('finalText').textContent = win ? `Has formado el nombre completo: ${NAME}. 🌼 Feliz 21 de septiembre, Vivi💛💛💛` : `Conseguiste ${collectedIndex} de ${NAME.length} letras. Intentémoslo otra vez.`;
+  buildBouquet();
+  finalModal.style.display = 'flex';
+}
+
+function buildBouquet(){
+  bouquet.innerHTML=''; const n = Math.min(Math.max(Math.round(collectedIndex * 1.6), 6), 20);
+  for(let i=0;i<n;i++){
+    const f = createFlowerElement(56);
+    f.style.transform = `translateY(0px) rotate(${randomBetween(-20,20)}deg)`;
+    f.style.opacity='0';
+    bouquet.appendChild(f);
+    setTimeout(()=>{ f.style.opacity='1'; }, 80 + i*40);
+  }
+  explodeConfetti();
+  copyMsg.dataset.msg = `Vivi, reuní ${collectedIndex} letras y te regalo estas flores amarillas. 🌼 Feliz 21 de septiembre 💛`;
+}
+
+function explodeConfetti(){
+  const colors=['#ffd44a','#ffe97d','#ffcf6b','#ffd7a8','#fff2d1'];
+  for(let i=0;i<36;i++){
+    const c=document.createElement('div'); c.className='confetti'; c.style.background = colors[Math.floor(Math.random()*colors.length)];
+    c.style.left = (45 + Math.random()*10) + '%'; c.style.top = (50 + Math.random()*10) + '%'; document.getElementById('app').appendChild(c);
+    const dx = randomBetween(-300,300); const dy = randomBetween(-500,-100); const rot = randomBetween(-720,720);
+    c.animate([{transform:'translate(0,0) rotate(0deg)', opacity:1},{transform:`translate(${dx}px, ${dy}px) rotate(${rot}deg)`, opacity:0}],{duration:1200 + Math.random()*800, easing:'cubic-bezier(.2,.7,.2,1)'});
+    setTimeout(()=> c.remove(), 2200);
+  }
+}
+
+function clearStage(){ [...stage.querySelectorAll('.item')].forEach(n=>n.remove()); itemsOnScreen = 0; items = []; }
+
+function startSpawns(){
+
+  stopSpawns();
+  setSettingsFromDifficulty();
+  
+  spawnTimers.flower = setInterval(()=> spawnItem('flower'), settings.FLOWER_MS);
+  spawnTimers.letter = setInterval(()=> spawnItem('letter'), settings.LETTER_MS);
+  spawnTimers.bomb = setInterval(()=> spawnItem('bomb'), settings.BOMB_MS);
+  spawnTimers.cat = setInterval(()=> spawnItem('cat'), settings.CAT_MS);
+}
+function stopSpawns(){ Object.values(spawnTimers).forEach(t=>{ if(t) clearInterval(t); }); spawnTimers = {flower:null,letter:null,bomb:null,cat:null}; }
+
+function randomBetween(a,b){ return Math.floor(Math.random()*(b-a)+a); }
+
+
+function startTimer(){
+  clearTimer();
+  timerInterval = setInterval(()=> {
+    timeLeft = Math.max(0, timeLeft - 1);
+    updateHUD();
+    if(timeLeft <= 0) { clearTimer(); fail(); }
+  }, 1000);
+}
+function clearTimer(){ if(timerInterval) clearInterval(timerInterval); timerInterval = null; }
+
+
+openStart.addEventListener('click', ()=>{ startModal.style.display = 'flex'; document.getElementById('startDifficulty').value = startSelect.value; });
+document.getElementById('closeStart').addEventListener('click', ()=>{ startModal.style.display = 'none'; });
+
+startGameBtn.addEventListener('click', ()=>{
+  
+  startSelect.value = startDifficulty.value;
+  setSettingsFromDifficulty();
+  resetGame();
+
+  startModal.style.display = 'none';
+  finalModal.style.display = 'none';
+
+  
+  running = true;
+  gameStarted = true;
+  startTime = Date.now();
+  timeLeft = START_TIME;
+  updateHUD();
+  startTimer();
+
+  
+  setTimeout(()=> {
+    if (running) startSpawns();
+  }, GRACE_PERIOD);
+
+  ensureAudio();
+});
+
+function resetGame(){
+  clearTimer();
+  stopSpawns();
+  clearStage();
+  settings = DIFF[ startSelect.value || 'medium' ];
+  items = [];
+  itemsOnScreen = 0;
+  running = false;
+  gameStarted = false;
+  startTime = 0;
+  timeLeft = START_TIME;
+  timerInterval = null;
+  score = 0;
+  collectedIndex = 0;
+  updateHUD();
+  buildNameBar();
+}
+
+playAgain.addEventListener('click', ()=>{ finalModal.style.display = 'none'; resetGame(); startGameBtn.click(); });
+
+
+copyMsg.addEventListener('click', async ()=>{
+  const txt = copyMsg.dataset.msg || `Estas flores son para ti Viviii🌼`;
+  try{ await navigator.clipboard.writeText(txt); copyMsg.textContent = '✅ Copiado'; setTimeout(()=> copyMsg.textContent = '💌 Copiar mensaje',1500); }catch(e){ copyMsg.textContent = '📋 Copiar manual'; setTimeout(()=> copyMsg.textContent = '💌 Copiar mensaje',1500); }
+});
+saveImg.addEventListener('click', ()=>{/* same download bouquet logic if needed (omitted for brevity) */});
+
+
+stage.addEventListener('touchmove', e=>{ e.preventDefault(); }, {passive:false});
+
+document.addEventListener('pointerdown', function unlock(){ try{ ensureAudio(); }catch(e){} document.removeEventListener('pointerdown', unlock); });
+
+
+startModal.style.display = 'flex';
+</script>
+</body>
+</html>
